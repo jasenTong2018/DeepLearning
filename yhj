@@ -1,0 +1,332 @@
+#include<iostream>  
+#include<cstdlib>  
+#include<vector>  
+#include<assert.h>  
+using namespace std;  
+  
+#define MAX 20  
+  
+enum Tag  
+{  
+    False,  
+    True  
+};  
+class Banker  
+{  
+public:  
+    Banker(int n,int r)  
+        :I(n)  
+        ,R(r)  
+    {}  
+    void Init()  //初始化进程资源  
+    {  
+        cout<<"请输入每种资源的总数："<<endl;  
+        for(int i=0;i<R;++i)  
+        {  
+            cin>>memery[i];  
+        }  
+        cout<<endl;  
+        for(int i = 0; i < I; ++i)  
+        {  
+            cout<<"P"<<i<<"(Max):"<<" ";  
+            for(int j=0;j<R;++j)  
+            {   
+                cin>>Max[i][j];  
+            }  
+            cout<<"P"<<i<<"(Allocation):"<<" ";  
+            for(int j=0;j<R;++j)  
+            {   
+                cin>>Allocation[i][j];  
+            }  
+            for(int j=0;j<R;++j)  
+            {   
+                //计算各进程还需要的资源数  
+                Need[i][j]=Max[i][j]-Allocation[i][j];  
+            }  
+        }  
+        for(int i=0;i<R;++i)  
+        {  
+            int sum[MAX]={0};  
+            for(int j=0;j<I;++j)  
+            {  
+                if(i==0)  
+                    sum[i]+=Allocation[j][i];  
+                if(i==1)  
+                    sum[i]+=Allocation[j][i];  
+                if(i==2)  
+                    sum[i]+=Allocation[j][i];  
+            }  
+            Available[i]=memery[i]-sum[i]; //总的资源数-已分配的资源数  
+        }  
+        cout<<endl;  
+    }  
+    void Display()        //打印进程现在时刻资源分配情况  
+    {  
+        cout<<endl<<"现在时刻的状态："<<endl;  
+        printf("进程\t Max\t Allocation\t Need\t Available\n");  
+  
+        for(int i = 0; i < I; ++i)  
+        {  
+            printf("P%d\t",i);  
+            for(int j = 0; j < R; ++j)  
+            {  
+                cout<<Max[i][j]<<" ";  
+            }  
+            printf("\t   ");  
+            for(int j = 0; j < R; ++j)  
+            {  
+                cout<<Allocation[i][j]<<" ";  
+            }  
+            printf("\t");  
+            for(int j = 0; j < R; ++j)  
+            {  
+                cout<<Need[i][j]<<" ";  
+            }  
+            printf("\t  ");  
+            for(int j = 0; j < R; ++j)  
+            {  
+                if(i == 0)  
+                    cout<<Available[j]<<" ";  
+                else  
+                    cout<<" "<<" ";  
+            }  
+            cout<<endl;  
+        }  
+    }  
+    void Safe()   //寻找安全序列  
+    {  
+        int work[MAX] = {0};  
+        memcpy(work,Available,R*sizeof(int));  //将可利用的资源Available数组内容给work数组  
+        _FindSafe(work);   //查找安全序列并打印  
+        SafeNum.clear();//寻找安全序列后清空容器  
+    }  
+  
+    //请求资源寻找安全序列  
+    void Request(int id,int* req)  
+    {  
+        assert(id>=0&&id<=I);  
+        int work[MAX] = {0};  
+        int need[MAX] = {0};  
+        int Allocate[MAX] = {0};  
+        int Av[MAX] = {0};  
+  
+        for(int i = 0; i < R; ++i)  //判断某进程申请的资源是否是否小于等于其需要的或系统现所拥有的  
+        {  
+            if(req[i] > Need[id][i])  
+            {  
+                cout<<"警告：超过此进程需求!"<<endl;  
+                return;  
+            }  
+            if(req[i] > Available[i])  
+            {  
+                 cout<<"警告：申请量超过当前可用资源数!"<<endl;  
+                 return;  
+            }  
+        }  
+        //保存此进程原所需求资源、已分配资源和系统可利用资源Available  
+        memcpy(need,Need[id],R*sizeof(int));  
+        memcpy(Allocate,Allocation[id],R*sizeof(int));  
+        memcpy(Av,Available,R*sizeof(int));  
+  
+        //修改Allocation、Need和Available变量，变为现在状态下此进程各项资源  
+        _Add(Allocation[id],req,R);  
+        _Sub(Need[id],req,R);  
+        _Sub(Available,req,R);  
+  
+        memcpy(work,Available,R*sizeof(int));  
+        _FindSafe(work);//此时状态下寻找安全序列  
+        if(SafeNum.size()==I)  
+        {  
+            cout<<"找到安全序列，为P"<<id<<"分配资源......";  
+            cout<<endl;  
+        }  
+        //没有找到则改变回原状态  
+        else  
+        {  
+            memcpy(Need[id],need,R*sizeof(int));  
+            memcpy(Allocation[id],Allocate,R*sizeof(int));  
+            memcpy(Available,Av,R*sizeof(int));  
+        }  
+        SafeNum.clear();//寻找安全序列后清空容器  
+    }  
+protected:  
+    void _Sub(int* arr1, int* arr2,int n)  
+    {  
+        while(n--)  
+        {  
+            *arr1 = *arr1 - *arr2;  
+            arr1++;  
+            arr2++;  
+        }  
+    }  
+  
+    void _Add(int* arr1, int* arr2,int n)  
+    {  
+        while(n--)  
+        {  
+            *arr1 = *arr1+ *arr2;  
+            arr1++;  
+            arr2++;  
+        }  
+    }  
+      
+    bool _Compare(int* arr1,int* arr2)  
+    {  
+        for(int i = 0; i < R; ++i)  
+        {  
+            if(arr1[i] > arr2[i])  
+                return false;  
+        }  
+        return true;  
+    }  
+  
+    void _FindSafe(int* work)   //查找安全序列  
+    {  
+        int WorkCur[MAX][MAX] = {0};  
+        vector<int> finish(I,0);//表示系统是否有足够资源分配给系统  
+        int WorkPrev[MAX][MAX] = {0};  
+  
+        int j = 0;   
+        int i = 0;  
+        for(j=0;j<I;++j)  
+        {  
+            for(i=0;i<I;++i)  
+            {  
+                if(finish[i]== False)  
+                {  
+                    //判断是否可以满足需求  
+                    if(_Compare(Need[i],work))//比较现有资源与进程需求  
+                    {  
+                        SafeNum.push_back(i); //记下进程号  
+                        finish[i] = True;    //状态标记为已完成；  
+                        //更新数据  
+                        _Add(WorkPrev[i],work,R);  //保存没分配前系统所有的资源，即将work中的资源数给WorkMartix  
+                        _Add(work,Allocation[i],R);  //计算系统现在可利用资源数work==前work+Allocation  
+                        _Add(WorkCur[i],work,R); //前work+Allocation  
+                    }  
+                }  
+            }  
+            if(SafeNum.size() == I)//表示进程已被分配完，找到安全序列  
+                    break;  
+            if(i==I&&SafeNum.size()==0)//若比较一次完成后容器没有符合要求的进程直接退出  
+                break;  
+        }  
+        if(SafeNum.size() != I)  //若进程个数没有全部入进vector容器中，则没找到安全序列  
+        {  
+            cout<<"!!!试分配未发现安全序列，系统不分配资源!!!"<<endl;  
+            return;  
+        }  
+        _Print(WorkCur,finish,WorkPrev);  
+    }  
+  
+    //打印安全序列  
+    void _Print(int WorkCur[][MAX],vector<int> finish,int WorkPrev[][MAX])  
+    {  
+        printf("\n安全序列为： ");  
+        for(int i = 0; i < I; ++i)  
+        {  
+            printf("P[%d] ",SafeNum[i]);  
+        }  
+        cout<<endl;  
+        printf("进程\t work\t need\t allocation\t work + allocation\t Finish\n");  
+        for(int i = 0; i < I; ++i)  
+        {  
+            int id = SafeNum[i];  
+            printf("P%d\t",SafeNum[i]);  
+            for(int j = 0; j < R; ++j)  
+            {  
+                cout<<WorkPrev[id][j]<<" ";  
+            }  
+            printf("\t ");  
+            for(int j = 0; j < R; ++j)  
+            {  
+                cout<<Need[id][j]<<" ";  
+            }  
+            printf("\t  ");  
+            for(int j = 0; j < R; ++j)  
+            {  
+                cout<<Allocation[id][j]<<" ";  
+            }  
+            printf("\t\t");  
+            for(int j = 0; j < R; ++j)  
+            {  
+                cout<<WorkCur[id][j]<<" ";  
+            }  
+            printf("\t\t  ");  
+            cout<<finish[id]<<endl;  
+        }  
+        cout<<endl;  
+    }  
+  
+protected:  
+    int I;  //代表有几个进程  
+    int R;  //代表几类资源  
+    int memery[MAX];  //资源的总数  
+    int Max[MAX][MAX];  //对各类资源最大需求量  
+    int Allocation[MAX][MAX];  //每个进程当前已分配各类资源数  
+    int Need[MAX][MAX];   //每个进程当前的需求量  
+    int Available[MAX];  //系统当前剩余可分配的各类资源  
+    vector<int> SafeNum;  //记录安全序列  
+};  
+  
+void Menu()  
+{  
+    cout<<endl;  
+    cout<<"****************** 银行家算法 *****************"<<endl;  
+    cout<<"************ 1. 初始化进程资源情况 ************"<<endl;  
+    cout<<"************ 2. 查看现在时刻资源分配情况 ******"<<endl;  
+    cout<<"************ 3. 查看现在时刻是否是安全状态 ****"<<endl;  
+    cout<<"************ 4. 为进程申请资源 ****************"<<endl;  
+    cout<<"************ 0. 退出 **************************"<<endl;  
+    cout<<endl;  
+}  
+void test()  
+{  
+    cout<<"请输入进程个数和资源种类：";  
+    int M,N;  
+    cin>>M>>N;  
+    Banker b(M,N);  
+    while(1)  
+    {  
+        Menu();  
+        cout<<"请选择：";  
+        int ch = 0;  
+        cin>>ch;  
+        switch (ch)  
+        {  
+        case 0:  
+            exit(0);  
+            break;  
+        case 1:  
+            b.Init();  
+            break;  
+        case 2:  
+            b.Display();  
+            break;  
+        case 3:  
+            b.Safe();  
+            break;  
+        case 4:  
+            {  
+                int id = 0;  
+                int request[MAX] = {0};  
+                cout<<"请输入要申请的进程号：";  
+                cin>>id;  
+                cout<<"请输入各类资源个数：";  
+                for(int i = 0; i < N; ++i)  
+                    cin>>request[i];  
+                b.Request(id,request);  
+            }  
+            break;  
+        default:  
+            cout<<"请重新输入！！！"<<endl;  
+            break;  
+        }  
+    }  
+}  
+int main()  
+{  
+    test();  
+    system("pause");  
+    return 1;  
+}  
